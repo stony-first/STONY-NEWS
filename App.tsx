@@ -31,11 +31,11 @@ const App: React.FC = () => {
       setNewsItems(Array.isArray(feed.articles) ? feed.articles : []);
     } catch (err: any) {
       if (err.message === "API_KEY_MISSING") {
-        setError("CLÉ API MANQUANTE. Veuillez configurer votre environnement.");
+        setError("CLÉ API MANQUANTE. Veuillez vérifier la configuration.");
       } else if (err.message === "QUOTA_EXCEEDED") {
-        setError("Limite de requêtes atteinte. Réessayez dans un instant.");
+        setError("Trop de demandes. Veuillez patienter une minute.");
       } else {
-        setError(err.message || "Impossible de récupérer les actualités.");
+        setError(err.message || "Impossible de charger les news.");
       }
     } finally {
       setIsLoading(false);
@@ -61,12 +61,12 @@ const App: React.FC = () => {
                 <input
                   type="text"
                   className="block w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-stony-red/20 focus:border-stony-red shadow-sm text-sm"
-                  placeholder="De quoi voulez-vous parler ?"
+                  placeholder="Rechercher une actualité..."
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                 />
             </div>
-            <button type="submit" disabled={isLoading} className="bg-gray-900 hover:bg-stony-red text-white px-5 py-2 rounded-xl transition-colors disabled:opacity-50 font-medium">
+            <button type="submit" disabled={isLoading} className="bg-gray-900 hover:bg-stony-red text-white px-5 py-2 rounded-xl transition-colors disabled:opacity-50 font-medium shadow-sm">
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Rechercher"}
             </button>
           </form>
@@ -87,22 +87,37 @@ const App: React.FC = () => {
                 <span className="w-2 h-8 bg-stony-red mr-3 rounded-sm"></span>
                 {currentTopic}
             </h2>
-            <button onClick={() => handleFetchNews(inputText)} className="text-sm text-gray-500 flex items-center hover:text-stony-red transition-colors">
-                <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} /> Actualiser
+            <button onClick={() => handleFetchNews(inputText)} className="text-sm text-gray-500 flex items-center hover:text-stony-red transition-colors group">
+                <RefreshCw className={`w-4 h-4 mr-2 group-hover:rotate-180 transition-transform duration-500 ${isLoading ? 'animate-spin' : ''}`} /> 
+                {isLoading ? "Chargement..." : "Actualiser"}
             </button>
         </div>
 
-        {error && <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-xl mb-6 flex items-start animate-fade-in-up"><AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" /> {error}</div>}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-xl mb-6 flex items-start animate-fade-in-up">
+            <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" /> 
+            <span>{error}</span>
+          </div>
+        )}
 
         {isLoading ? (
-          <div className="space-y-4">{[1, 2, 3].map(i => <div key={i} className="bg-white rounded-xl h-48 animate-pulse border border-gray-100"></div>)}</div>
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white rounded-xl p-6 h-48 animate-pulse border border-gray-100 flex flex-col gap-4">
+                <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+                <div className="h-8 bg-gray-100 rounded w-3/4"></div>
+                <div className="h-20 bg-gray-100 rounded w-full"></div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="space-y-6">
             {filteredNews.length > 0 ? (
               filteredNews.map((article, index) => <NewsResultCard key={index} data={article} />)
             ) : !error && (
-              <div className="text-center py-20 text-gray-400">
-                Aucune actualité trouvée pour ce sujet.
+              <div className="text-center py-24 bg-white border border-gray-100 rounded-2xl shadow-sm">
+                <p className="text-gray-400 font-medium">Aucun résultat trouvé pour votre recherche.</p>
+                <button onClick={() => handleFetchNews("")} className="mt-4 text-stony-red font-semibold hover:underline">Voir les dernières actualités</button>
               </div>
             )}
           </div>
@@ -110,7 +125,7 @@ const App: React.FC = () => {
       </main>
 
       <footer className="bg-white border-t border-gray-200 py-8 text-center text-gray-400 text-xs">
-        STONY NEWS © {new Date().getFullYear()} • Journalisme assisté par IA • Information en temps réel.
+        STONY NEWS © {new Date().getFullYear()} • Journalisme assisté par Intelligence Artificielle.
       </footer>
     </div>
   );

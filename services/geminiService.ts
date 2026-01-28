@@ -8,11 +8,11 @@ Tu es un journaliste professionnel africain, rigoureux et neutre.
 Ta mission est d’analyser et de résumer des articles d’actualité en temps réel pour une application web.
 
 RÈGLES ÉDITORIALES STRICTES :
-1. Résume uniquement les informations les plus récentes disponibles via l'outil de recherche.
+1. Résume uniquement les informations les plus récentes disponibles.
 2. Produis un résumé : factuel, neutre, clair, sans opinion personnelle.
 3. Langage simple et professionnel, parfaitement adapté au contexte du Burkina Faso et de l'Afrique de l'Ouest.
 4. Le résumé ne doit pas dépasser 5 phrases. Va droit à l'essentiel.
-5. Ne cite pas de liens d'articles, concentre-toi sur le contenu.
+5. NE CITE AUCUN LIEN (URL). Cite uniquement les noms des médias (ex: Sidwaya, L'Observateur, France24).
 
 Tu DOIS répondre exclusivement au format JSON avec cette structure :
 {
@@ -22,7 +22,7 @@ Tu DOIS répondre exclusivement au format JSON avec cette structure :
       "resume": string,
       "pointsCles": string[],
       "contexte": string,
-      "sources": string[], // Noms des médias sources (ex: Sidwaya, BBC, etc.)
+      "sources": string[],
       "categorie": "Burkina Faso" | "Afrique" | "International",
       "niveauFiabilite": "Élevé" | "Moyen" | "Faible",
       "justificationFiabilite": string,
@@ -43,8 +43,8 @@ export const fetchNews = async (topic: string = ""): Promise<NewsFeed> => {
   const ai = new GoogleGenAI({ apiKey });
 
   const prompt = topic 
-    ? `Rédige un bulletin d'actualité en temps réel sur : "${topic}".` 
-    : `Quelles sont les actualités brûlantes de la dernière heure au Burkina Faso, en Afrique et dans le monde ?`;
+    ? `Analyse l'actualité en temps réel pour : "${topic}".` 
+    : `Quelles sont les actualités majeures de la dernière heure au Burkina Faso, en Afrique et dans le monde ?`;
 
   try {
     const response = await ai.models.generateContent({
@@ -59,7 +59,7 @@ export const fetchNews = async (topic: string = ""): Promise<NewsFeed> => {
 
     const textOutput = response.text;
     if (!textOutput) {
-      throw new Error("L'IA n'a pas pu générer de texte. Essayez un sujet plus précis.");
+      throw new Error("L'IA n'a pas pu générer de texte.");
     }
 
     const data = JSON.parse(textOutput);
