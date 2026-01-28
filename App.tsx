@@ -28,14 +28,19 @@ const App: React.FC = () => {
 
     try {
       const feed = await fetchNews(topic);
-      setNewsItems(Array.isArray(feed.articles) ? feed.articles : []);
-    } catch (err: any) {
-      if (err.message === "API_KEY_MISSING") {
-        setError("CLÉ API MANQUANTE. Veuillez vérifier la configuration.");
-      } else if (err.message === "QUOTA_EXCEEDED") {
-        setError("Trop de demandes. Veuillez patienter une minute.");
+      if (feed && Array.isArray(feed.articles)) {
+        setNewsItems(feed.articles);
       } else {
-        setError(err.message || "Impossible de charger les news.");
+        setNewsItems([]);
+      }
+    } catch (err: any) {
+      console.error("Fetch Error:", err);
+      if (err.message === "API_KEY_MISSING") {
+        setError("CLÉ API MANQUANTE : Veuillez configurer la variable API_KEY dans Vercel.");
+      } else if (err.message === "QUOTA_EXCEEDED") {
+        setError("Limite de requêtes atteinte. Réessayez dans une minute.");
+      } else {
+        setError(err.message || "Une erreur est survenue lors de la récupération des news.");
       }
     } finally {
       setIsLoading(false);
@@ -53,7 +58,10 @@ const App: React.FC = () => {
 
       <main className="flex-grow container mx-auto px-4 py-6 max-w-4xl">
         <div className="mb-6">
-          <form onSubmit={(e) => { e.preventDefault(); handleFetchNews(inputText); }} className="relative flex gap-2">
+          <form 
+            onSubmit={(e) => { e.preventDefault(); handleFetchNews(inputText); }} 
+            className="relative flex gap-2"
+          >
             <div className="relative flex-grow">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Search className="h-4 w-4 text-gray-400" />
@@ -61,12 +69,16 @@ const App: React.FC = () => {
                 <input
                   type="text"
                   className="block w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-stony-red/20 focus:border-stony-red shadow-sm text-sm"
-                  placeholder="Rechercher une actualité..."
+                  placeholder="Rechercher un sujet ou un événement..."
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                 />
             </div>
-            <button type="submit" disabled={isLoading} className="bg-gray-900 hover:bg-stony-red text-white px-5 py-2 rounded-xl transition-colors disabled:opacity-50 font-medium shadow-sm">
+            <button 
+              type="submit" 
+              disabled={isLoading} 
+              className="bg-gray-900 hover:bg-stony-red text-white px-6 py-2 rounded-xl transition-all disabled:opacity-50 font-medium shadow-sm"
+            >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Rechercher"}
             </button>
           </form>
@@ -75,7 +87,15 @@ const App: React.FC = () => {
         {!isLoading && !error && (
           <div className="flex flex-wrap gap-2 mb-8">
             {filters.map((f) => (
-              <button key={f} onClick={() => setActiveFilter(f)} className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${activeFilter === f ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+              <button 
+                key={f} 
+                onClick={() => setActiveFilter(f)} 
+                className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+                  activeFilter === f 
+                  ? 'bg-gray-900 text-white border-gray-900' 
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 shadow-sm'
+                }`}
+              >
                 {f}
               </button>
             ))}
@@ -84,48 +104,68 @@ const App: React.FC = () => {
 
         <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-serif font-bold flex items-center">
-                <span className="w-2 h-8 bg-stony-red mr-3 rounded-sm"></span>
+                <span className="w-1.5 h-8 bg-stony-red mr-3 rounded-full"></span>
                 {currentTopic}
             </h2>
-            <button onClick={() => handleFetchNews(inputText)} className="text-sm text-gray-500 flex items-center hover:text-stony-red transition-colors group">
-                <RefreshCw className={`w-4 h-4 mr-2 group-hover:rotate-180 transition-transform duration-500 ${isLoading ? 'animate-spin' : ''}`} /> 
-                {isLoading ? "Chargement..." : "Actualiser"}
+            <button 
+              onClick={() => handleFetchNews(inputText)} 
+              disabled={isLoading}
+              className="text-sm text-gray-500 flex items-center hover:text-stony-red transition-colors group disabled:opacity-50"
+            >
+                <RefreshCw className={`w-4 h-4 mr-2 group-hover:rotate-180 transition-transform duration-700 ${isLoading ? 'animate-spin' : ''}`} /> 
+                {isLoading ? "Mise à jour..." : "Actualiser"}
             </button>
         </div>
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-xl mb-6 flex items-start animate-fade-in-up">
-            <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" /> 
-            <span>{error}</span>
+            <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0 mt-0.5" /> 
+            <span className="text-sm font-medium">{error}</span>
           </div>
         )}
 
         {isLoading ? (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {[1, 2, 3].map(i => (
-              <div key={i} className="bg-white rounded-xl p-6 h-48 animate-pulse border border-gray-100 flex flex-col gap-4">
+              <div key={i} className="bg-white rounded-xl p-6 h-56 animate-pulse border border-gray-100 flex flex-col gap-4">
                 <div className="h-4 bg-gray-100 rounded w-1/4"></div>
                 <div className="h-8 bg-gray-100 rounded w-3/4"></div>
-                <div className="h-20 bg-gray-100 rounded w-full"></div>
+                <div className="space-y-2">
+                  <div className="h-3 bg-gray-100 rounded w-full"></div>
+                  <div className="h-3 bg-gray-100 rounded w-full"></div>
+                  <div className="h-3 bg-gray-100 rounded w-2/3"></div>
+                </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-6 mb-12">
             {filteredNews.length > 0 ? (
               filteredNews.map((article, index) => <NewsResultCard key={index} data={article} />)
             ) : !error && (
               <div className="text-center py-24 bg-white border border-gray-100 rounded-2xl shadow-sm">
-                <p className="text-gray-400 font-medium">Aucun résultat trouvé pour votre recherche.</p>
-                <button onClick={() => handleFetchNews("")} className="mt-4 text-stony-red font-semibold hover:underline">Voir les dernières actualités</button>
+                <p className="text-gray-400 font-medium">Aucun bulletin disponible pour ce filtre.</p>
+                <button 
+                  onClick={() => handleFetchNews("")} 
+                  className="mt-4 text-stony-red font-semibold hover:underline"
+                >
+                  Revenir à la une
+                </button>
               </div>
             )}
           </div>
         )}
       </main>
 
-      <footer className="bg-white border-t border-gray-200 py-8 text-center text-gray-400 text-xs">
-        STONY NEWS © {new Date().getFullYear()} • Journalisme assisté par Intelligence Artificielle.
+      <footer className="bg-white border-t border-gray-200 py-10 text-center">
+        <div className="flex justify-center space-x-1 mb-4">
+            <div className="h-1.5 w-6 bg-stony-red rounded-full"></div>
+            <div className="h-1.5 w-6 bg-stony-green rounded-full"></div>
+            <div className="h-1.5 w-6 bg-stony-yellow rounded-full"></div>
+        </div>
+        <p className="text-gray-500 text-xs font-medium tracking-widest uppercase">
+          STONY NEWS © {new Date().getFullYear()} • Journalisme assisté par Intelligence Artificielle
+        </p>
       </footer>
     </div>
   );
