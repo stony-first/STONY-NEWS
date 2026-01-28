@@ -3,7 +3,7 @@ import Header from './components/Header';
 import NewsResultCard from './components/NewsResultCard';
 import { fetchNews } from './services/geminiService';
 import { NewsArticle } from './types';
-import { Search, Loader2, RefreshCw } from 'lucide-react';
+import { Search, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 
 const App: React.FC = () => {
   const [inputText, setInputText] = useState('');
@@ -32,8 +32,12 @@ const App: React.FC = () => {
       const feed = await fetchNews(topic);
       setNewsItems(feed.articles);
     } catch (err: any) {
-      setError("Impossible de récupérer les actualités pour le moment. Vérifiez votre connexion.");
       console.error(err);
+      if (err.message === "API_KEY_MISSING") {
+        setError("CLÉ API MANQUANTE. Veuillez ajouter la variable 'API_KEY' dans les réglages Vercel, puis redéployer le projet.");
+      } else {
+        setError(err.message || "Impossible de récupérer les actualités pour le moment. Vérifiez votre connexion.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -119,8 +123,9 @@ const App: React.FC = () => {
 
         {/* Error State */}
         {error && (
-          <div className="bg-red-50 border border-red-100 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm">
-            {error}
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-4 rounded-xl mb-6 flex items-start shadow-sm">
+            <AlertCircle className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0 text-red-600" />
+            <div className="text-sm font-medium">{error}</div>
           </div>
         )}
 
