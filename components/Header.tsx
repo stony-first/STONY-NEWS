@@ -11,7 +11,7 @@ const Header: React.FC = () => {
           </div>
           <div>
             <h1 className="text-xl font-bold font-serif text-gray-900 tracking-tight">
-              BURKINA<span className="text-stony-red">NEWS</span>
+              STONY<span className="text-stony-red">NEWS</span>
             </h1>
             <p className="text-[0.65rem] text-gray-500 uppercase tracking-widest font-semibold">
               Info Faso, Afrique & Monde

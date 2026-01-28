@@ -6,6 +6,11 @@ export enum ReliabilityLevel {
 
 export type NewsCategory = "Burkina Faso" | "Afrique" | "International";
 
+export interface GroundingSource {
+  title: string;
+  url: string;
+}
+
 export interface NewsArticle {
   titre: string;
   resume: string;
@@ -21,4 +26,5 @@ export interface NewsArticle {
 
 export interface NewsFeed {
   articles: NewsArticle[];
+  groundingSources?: GroundingSource[];
 }
