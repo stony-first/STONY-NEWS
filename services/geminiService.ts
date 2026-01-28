@@ -3,19 +3,21 @@ import { GoogleGenAI } from "@google/genai";
 import { NewsFeed, GroundingSource } from "../types";
 
 const SYSTEM_INSTRUCTION = `
-TU ES "STONY NEWS"
+TU ES LA RÉDACTION DE "STONY NEWS"
 
-Tu es un journaliste professionnel africain, rigoureux et neutre.
-Ta mission est d’analyser et de résumer des articles d’actualité en temps réel pour une application web.
+Tu es un journaliste professionnel burkinabè, rigoureux, neutre et panafricaniste.
+Ta mission est de produire des bulletins d'information originaux en synthétisant les dépêches actuelles.
 
-RÈGLES ÉDITORIALES STRICTES :
-1. Résume uniquement les informations les plus récentes disponibles.
-2. Produis un résumé : factuel, neutre, clair, sans opinion personnelle.
-3. Langage simple et professionnel, parfaitement adapté au contexte du Burkina Faso et de l'Afrique de l'Ouest.
-4. Le résumé ne doit pas dépasser 5 phrases. Va droit à l'essentiel.
-5. NE CITE AUCUN LIEN (URL). Cite uniquement les noms des médias (ex: Sidwaya, L'Observateur, France24).
+RÈGLES ÉDITORIALES :
+1. Ton identité est "STONY NEWS". Ne te présente jamais comme un autre média.
+2. Synthétise les informations de plusieurs sources (AIB, Sidwaya, LeFaso.net, France24, Africanews, etc.) pour créer un résumé unique et original.
+3. Priorité absolue au Burkina Faso et à l'actualité de l'AES (Mali, Niger) et de l'Afrique de l'Ouest.
+4. Ton ton doit être factuel, calme, neutre et professionnel.
+5. Langage clair, adapté aux citoyens burkinabè.
+6. Le résumé ne doit pas dépasser 5 phrases percutantes.
+7. Pour chaque article, inclus impérativement les URLs sources directes dans le champ "liens".
 
-Tu DOIS répondre exclusivement au format JSON avec cette structure :
+FORMAT DE RÉPONSE ATTENDU (JSON UNIQUEMENT) :
 {
   "articles": [
     {
@@ -24,6 +26,7 @@ Tu DOIS répondre exclusivement au format JSON avec cette structure :
       "pointsCles": string[],
       "contexte": string,
       "sources": string[],
+      "liens": string[],
       "categorie": "Burkina Faso" | "Afrique" | "International",
       "niveauFiabilite": "Élevé" | "Moyen" | "Faible",
       "justificationFiabilite": string,
@@ -32,6 +35,8 @@ Tu DOIS répondre exclusivement au format JSON avec cette structure :
     }
   ]
 }
+
+IMPORTANT : Réponds uniquement avec l'objet JSON, sans texte avant ou après, et sans balises de code Markdown.
 `;
 
 export const fetchNews = async (topic: string = ""): Promise<NewsFeed> => {
@@ -41,33 +46,40 @@ export const fetchNews = async (topic: string = ""): Promise<NewsFeed> => {
     throw new Error("API_KEY_MISSING");
   }
 
-  // Always create a new GoogleGenAI instance right before making an API call
+  // Initialisation à chaque appel pour garantir l'utilisation de la clé la plus récente
   const ai = new GoogleGenAI({ apiKey });
 
   const prompt = topic 
-    ? `Analyse l'actualité en temps réel pour : "${topic}".` 
-    : `Quelles sont les actualités majeures de la dernière heure au Burkina Faso, en Afrique et dans le monde ?`;
+    ? `Rédige un bulletin STONY NEWS sur : "${topic}". Analyse les dernières dépêches et cite tes sources avec liens. Ta réponse doit être au format JSON spécifié.` 
+    : `Quelles sont les actualités brûlantes de la dernière heure ? Focus sur le Burkina Faso, le Sahel et l'international. Produis le bulletin pour STONY NEWS avec liens sources. Ta réponse doit être au format JSON spécifié.`;
 
   try {
+    // Note: On ne définit pas responseMimeType: "application/json" car cela provoque souvent des erreurs 500
+    // lorsqu'utilisé avec l'outil googleSearch. On demande le format JSON dans le prompt.
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         tools: [{ googleSearch: {} }],
-        responseMimeType: "application/json",
+        temperature: 0.2, // Plus bas pour plus de stabilité dans le format JSON
       },
     });
 
-    const textOutput = response.text;
+    let textOutput = response.text;
     if (!textOutput) {
-      throw new Error("L'IA n'a pas pu générer de texte.");
+      throw new Error("La rédaction n'a pas pu générer de contenu.");
+    }
+
+    // Nettoyage du texte au cas où le modèle aurait inclus des balises markdown
+    const jsonMatch = textOutput.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      textOutput = jsonMatch[0];
     }
 
     const data = JSON.parse(textOutput);
     const articles = Array.isArray(data.articles) ? data.articles : [];
 
-    // MUST ALWAYS extract the URLs from groundingChunks and list them on the web app when using googleSearch
     const groundingSources: GroundingSource[] = [];
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
     if (chunks) {
@@ -84,8 +96,17 @@ export const fetchNews = async (topic: string = ""): Promise<NewsFeed> => {
     return { articles, groundingSources };
 
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    if (error.message?.includes("429")) throw new Error("QUOTA_EXCEEDED");
-    throw new Error(error.message || "Erreur de connexion aux serveurs de Stony News.");
+    console.error("Gemini API Error Detail:", error);
+    
+    // Gestion spécifique des erreurs de proxy/XHR (souvent liées au grounding)
+    if (error.message?.includes("xhr error") || error.message?.includes("ProxyUnaryCall")) {
+      throw new Error("Le service de recherche en temps réel est temporairement indisponible. Veuillez réessayer dans quelques instants.");
+    }
+
+    if (error.message?.includes("429")) {
+      throw new Error("Limite de requêtes atteinte. Veuillez patienter une minute.");
+    }
+    
+    throw new Error("Erreur lors de la récupération des actualités. Veuillez vérifier votre connexion.");
   }
 };

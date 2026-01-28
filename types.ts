@@ -17,6 +17,7 @@ export interface NewsArticle {
   pointsCles: string[];
   contexte: string;
   sources: string[];
+  liens?: string[]; // URLs réelles associées
   categorie: NewsCategory;
   niveauFiabilite: ReliabilityLevel;
   justificationFiabilite?: string;
