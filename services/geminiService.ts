@@ -2,34 +2,35 @@ import { GoogleGenAI } from "@google/genai";
 import { NewsFeed } from "../types";
 
 const SYSTEM_INSTRUCTION = `
-TU ES "STONY NEWS"
+TU ES "BURKINA NEWS"
 
-Tu es un rédacteur en chef IA autonome spécialisé dans l'actualité internationale, africaine et du Burkina Faso.
-Ton rôle n'est PAS de discuter avec l'utilisateur, mais de générer un FLUX D'ACTUALITÉS (News Feed) précis et rigoureux.
+Tu es un journaliste professionnel africain, rigoureux et neutre.
+Ta mission est d’analyser et de résumer des articles d’actualité pour une application web.
 
-MISSION :
-1. Utilise l'outil de recherche (Google Search) pour trouver les informations les plus récentes et pertinentes.
-2. Couvre l'actualité en 3 volets prioritaires : 
-   - Le Burkina Faso (local)
-   - L'Afrique (régional)
-   - Le Monde (international majeur)
-3. Sélectionne les 3 à 6 faits marquants les plus importants.
-4. CLASSIFIE chaque article dans l'une de ces catégories : "Burkina Faso", "Afrique", ou "International".
-5. Tu DOIS générer une réponse au format JSON STRICT.
-6. N'ajoute PAS de balises markdown (comme \`\`\`json) autour de la réponse si possible, ou assure-toi que le JSON est valide à l'intérieur.
+RÈGLES ÉDITORIALES STRICTES :
+1. Résume uniquement les informations explicitement présentes. N’invente aucune information.
+2. Nettoie le texte (pas de pub, pas de répétitions).
+3. Produis un résumé : factuel, neutre, clair, sans opinion personnelle, sans sensationnalisme.
+4. Langage simple et professionnel, compréhensible par un public du Burkina Faso.
+5. Le résumé ne doit pas dépasser 5 phrases. Va droit à l’essentiel : qui, quoi, où, quand, pourquoi.
+6. Mets en avant les enjeux ou impacts régionaux (Afrique de l'Ouest, Burkina Faso) quand ils sont clairement mentionnés.
+7. Reste prudent avec les informations spéculatives.
+
+FORMAT TECHNIQUE :
+Tu dois générer une réponse au format JSON STRICT.
 
 STRUCTURE JSON ATTENDUE :
 {
   "articles": [
     {
-      "titre": "Titre accrocheur",
+      "titre": "Titre informatif et neutre",
       "categorie": "Burkina Faso" | "Afrique" | "International",
-      "resume": "Résumé complet en 5-7 phrases.",
+      "resume": "Résumé respectant les règles éditoriales (max 5 phrases).",
       "pointsCles": ["Point 1", "Point 2", "Point 3"],
       "contexte": "Contexte bref.",
       "sources": ["Source 1", "Source 2"],
       "niveauFiabilite": "Élevé" | "Moyen" | "Faible",
-      "justificationFiabilite": "...",
+      "justificationFiabilite": "Explication courte.",
       "estUrgent": boolean,
       "estNonConfirme": boolean
     }
@@ -49,17 +50,31 @@ export const fetchNews = async (topic: string = ""): Promise<NewsFeed> => {
     ? `Recherche les dernières actualités importantes concernant : "${topic}". Trouve des sources fiables et résume les points essentiels. Classifie chaque news selon sa région géographique.` 
     : `Quelles sont les actualités majeures et vérifiées des dernières 24h au Burkina Faso, en Afrique et dans le monde (international) ?`;
 
-  // Utilisation de gemini-3-flash-preview sans responseSchema strict pour compatibilité avec Google Search
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: prompt,
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-      tools: [{ googleSearch: {} }],
-      // Note: On ne met PAS responseSchema ni responseMimeType: "application/json" 
-      // car cela cause souvent des erreurs 400 ou des formats invalides quand combiné avec Search.
-    },
-  });
+  let response;
+  try {
+    // Utilisation de gemini-3-flash-preview sans responseSchema strict pour compatibilité avec Google Search
+    response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        tools: [{ googleSearch: {} }],
+        // Note: On ne met PAS responseSchema ni responseMimeType: "application/json" 
+        // car cela cause souvent des erreurs 400 ou des formats invalides quand combiné avec Search.
+      },
+    });
+  } catch (error: any) {
+    console.error("Gemini API Error:", error);
+    if (
+      error.message?.includes("429") || 
+      error.message?.includes("quota") || 
+      error.message?.includes("RESOURCE_EXHAUSTED") ||
+      error.status === 429
+    ) {
+      throw new Error("QUOTA_EXCEEDED");
+    }
+    throw error;
+  }
 
   let text = response.text;
   if (!text) {

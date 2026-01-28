@@ -35,6 +35,8 @@ const App: React.FC = () => {
       console.error(err);
       if (err.message === "API_KEY_MISSING") {
         setError("CLÉ API MANQUANTE. Veuillez ajouter la variable 'API_KEY' dans les réglages Vercel, puis redéployer le projet.");
+      } else if (err.message === "QUOTA_EXCEEDED") {
+        setError("⚠️ TROP DE DEMANDES. Le quota de l'API Google Gemini est dépassé pour le moment. Veuillez réessayer dans quelques minutes.");
       } else {
         setError(err.message || "Impossible de récupérer les actualités pour le moment. Vérifiez votre connexion.");
       }
@@ -178,7 +180,7 @@ const App: React.FC = () => {
       <footer className="bg-white border-t border-gray-200 mt-auto py-8">
         <div className="container mx-auto px-4 text-center">
           <p className="text-gray-400 text-xs">
-            STONY NEWS © {new Date().getFullYear()} • Généré par IA en temps réel • Vérifiez toujours les sources officielles.
+            BURKINA NEWS © {new Date().getFullYear()} • Généré par IA en temps réel • Vérifiez toujours les sources officielles.
           </p>
         </div>
       </footer>
