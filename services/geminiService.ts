@@ -1,5 +1,6 @@
+
 import { GoogleGenAI } from "@google/genai";
-import { NewsFeed } from "../types";
+import { NewsFeed, GroundingSource } from "../types";
 
 const SYSTEM_INSTRUCTION = `
 TU ES "STONY NEWS"
@@ -40,6 +41,7 @@ export const fetchNews = async (topic: string = ""): Promise<NewsFeed> => {
     throw new Error("API_KEY_MISSING");
   }
 
+  // Always create a new GoogleGenAI instance right before making an API call
   const ai = new GoogleGenAI({ apiKey });
 
   const prompt = topic 
@@ -65,7 +67,21 @@ export const fetchNews = async (topic: string = ""): Promise<NewsFeed> => {
     const data = JSON.parse(textOutput);
     const articles = Array.isArray(data.articles) ? data.articles : [];
 
-    return { articles };
+    // MUST ALWAYS extract the URLs from groundingChunks and list them on the web app when using googleSearch
+    const groundingSources: GroundingSource[] = [];
+    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+    if (chunks) {
+      chunks.forEach((chunk: any) => {
+        if (chunk.web && chunk.web.uri && chunk.web.title) {
+          groundingSources.push({
+            title: chunk.web.title,
+            url: chunk.web.uri
+          });
+        }
+      });
+    }
+
+    return { articles, groundingSources };
 
   } catch (error: any) {
     console.error("Gemini API Error:", error);
