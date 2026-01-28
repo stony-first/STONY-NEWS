@@ -1,5 +1,5 @@
 {
-  "name": "Stony News AI",
+  "name": "Stony News",
   "description": "Assistant d'actualités intelligent et neutre couvrant l'actualité internationale, africaine et du Burkina Faso, propulsé par Gemini.",
   "requestFramePermissions": [
     "microphone"
