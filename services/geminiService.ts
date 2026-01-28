@@ -40,7 +40,8 @@ STRUCTURE JSON ATTENDUE :
 
 export const fetchNews = async (topic: string = ""): Promise<NewsFeed> => {
   const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey.includes("undefined")) {
+  
+  if (!apiKey || apiKey === "" || apiKey === "undefined") {
     throw new Error("API_KEY_MISSING");
   }
 
@@ -52,56 +53,49 @@ export const fetchNews = async (topic: string = ""): Promise<NewsFeed> => {
 
   let response;
   try {
-    // Utilisation de gemini-3-flash-preview sans responseSchema strict pour compatibilité avec Google Search
     response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         tools: [{ googleSearch: {} }],
-        // Note: On ne met PAS responseSchema ni responseMimeType: "application/json" 
-        // car cela cause souvent des erreurs 400 ou des formats invalides quand combiné avec Search.
       },
     });
   } catch (error: any) {
     console.error("Gemini API Error:", error);
+    const errorMsg = error.message || "";
     if (
-      error.message?.includes("429") || 
-      error.message?.includes("quota") || 
-      error.message?.includes("RESOURCE_EXHAUSTED") ||
-      error.status === 429
+      errorMsg.includes("429") || 
+      errorMsg.includes("quota") || 
+      errorMsg.includes("RESOURCE_EXHAUSTED")
     ) {
       throw new Error("QUOTA_EXCEEDED");
     }
-    throw error;
+    throw new Error("Erreur lors de la connexion à l'IA. Vérifiez votre clé API et votre connexion.");
   }
 
-  let text = response.text;
-  if (!text) {
-    throw new Error("Aucune réponse de l'IA (texte vide).");
+  const textOutput = response.text;
+  if (!textOutput) {
+    throw new Error("L'IA n'a pas renvoyé de contenu.");
   }
 
-  // Nettoyage robuste du JSON (suppression des balises markdown ```json ... ```)
-  text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+  // Nettoyage du JSON
+  let cleanedJson = textOutput.replace(/```json/g, "").replace(/```/g, "").trim();
+  const start = cleanedJson.indexOf('{');
+  const end = cleanedJson.lastIndexOf('}');
   
-  // Extraction de la partie JSON si le modèle a ajouté du texte avant/après
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
   if (start !== -1 && end !== -1) {
-    text = text.substring(start, end + 1);
+    cleanedJson = cleanedJson.substring(start, end + 1);
   }
 
   try {
-    const data = JSON.parse(text) as NewsFeed;
-    
-    // Validation basique
+    const data = JSON.parse(cleanedJson) as NewsFeed;
     if (!data.articles || !Array.isArray(data.articles)) {
-        throw new Error("Structure JSON invalide reçue.");
+        throw new Error("Format de données invalide.");
     }
-    
     return data;
   } catch (e) {
-    console.error("Erreur parsing JSON:", text);
-    throw new Error("Le format des actualités reçu est incorrect.");
+    console.error("JSON Parsing Error:", cleanedJson);
+    throw new Error("Impossible de lire les actualités générées. Réessayez.");
   }
 };
