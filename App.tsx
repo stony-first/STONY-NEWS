@@ -1,13 +1,12 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
 import NewsResultCard from './components/NewsResultCard';
 import { fetchNews } from './services/geminiService';
 import { NewsArticle } from './types';
-import { Search, Loader2, RefreshCw, AlertCircle, Clock, Info } from 'lucide-react';
+import { Search, Loader2, RefreshCw, AlertCircle, Clock, Info, Newspaper } from 'lucide-react';
 
-const CACHE_KEY = 'stony_news_cache_v5';
-const CACHE_EXPIRATION = 15 * 60 * 1000; 
+const CACHE_KEY = 'stony_news_cache_v6';
+const CACHE_EXPIRATION = 10 * 60 * 1000; // 10 minutes
 
 const App: React.FC = () => {
   const [inputText, setInputText] = useState('');
@@ -41,20 +40,14 @@ const App: React.FC = () => {
   }, []);
 
   const handleFetchNews = async (topic: string = "", forceRefresh: boolean = false) => {
-    if (!forceRefresh && !topic && loadFromCache()) {
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
     
-    // On garde les anciens articles pendant le chargement pour éviter un écran vide,
-    // sauf si c'est une nouvelle recherche spécifique
     if (topic) setNewsItems([]); 
 
     try {
       const feed = await fetchNews(topic);
-      if (feed && Array.isArray(feed.articles) && feed.articles.length > 0) {
+      if (feed && feed.articles && feed.articles.length > 0) {
         setNewsItems(feed.articles);
         const now = Date.now();
         setLastUpdated(now);
@@ -68,11 +61,11 @@ const App: React.FC = () => {
           }));
         }
       } else {
-        setError("Aucun bulletin n'a pu être rédigé pour ce sujet.");
+        setError("La rédaction n'a trouvé aucune information récente sur ce sujet.");
       }
     } catch (err: any) {
       console.error("Fetch Error:", err);
-      setError(err.message || "Une erreur inattendue est survenue lors de la rédaction.");
+      setError(err.message || "Une erreur est survenue lors de la rédaction du bulletin.");
     } finally {
       setIsLoading(false);
     }
@@ -114,8 +107,8 @@ const App: React.FC = () => {
                 </div>
                 <input
                   type="text"
-                  className="block w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-100 rounded-2xl focus:ring-4 focus:ring-burkina-red/5 focus:border-burkina-red shadow-sm text-base transition-all"
-                  placeholder="Rechercher une actualité ou un sujet..."
+                  className="block w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-100 rounded-2xl focus:ring-4 focus:ring-burkina-red/5 focus:border-burkina-red shadow-sm text-base transition-all outline-none"
+                  placeholder="Rechercher une actualité (ex: Ouagadougou, Mines, Sport)..."
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                 />
@@ -125,13 +118,30 @@ const App: React.FC = () => {
               disabled={isLoading} 
               className="bg-gray-900 hover:bg-burkina-red text-white px-8 py-2 rounded-2xl transition-all disabled:opacity-50 font-bold shadow-lg flex items-center shrink-0"
             >
-                {isLoading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
-                {isLoading ? "Rédaction..." : "Lancer"}
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Newspaper className="h-5 w-5 mr-2" />}
+                {isLoading ? "Consultation..." : "Consulter"}
             </button>
           </form>
         </div>
 
-        {!isLoading && !error && newsItems.length > 0 && (
+        {error ? (
+          <div className="bg-white border-l-4 border-burkina-red p-6 rounded-2xl mb-8 flex items-start shadow-xl animate-fade-in-up">
+            <AlertCircle className="w-6 h-6 text-burkina-red mr-4 flex-shrink-0 mt-1" /> 
+            <div className="text-gray-800">
+              <p className="font-black text-lg">Note de la rédaction</p>
+              <p className="text-sm opacity-80">{error}</p>
+              <button 
+                onClick={() => handleFetchNews(inputText, true)}
+                className="mt-4 inline-flex items-center text-xs font-bold text-burkina-red hover:underline uppercase tracking-wider"
+              >
+                <RefreshCw className="w-3 h-3 mr-1.5" />
+                Réessayer la demande
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {!isLoading && !error && (
           <div className="flex flex-wrap gap-2 mb-10 overflow-x-auto pb-2 scrollbar-hide">
             {filters.map((f) => (
               <button 
@@ -157,39 +167,25 @@ const App: React.FC = () => {
               </h2>
               {lastUpdated && !isLoading && (
                 <p className="text-[10px] text-gray-400 uppercase tracking-[0.2em] mt-2 ml-6 flex items-center font-bold">
-                  <Clock className="w-3 h-3 mr-1.5" /> Bureau de rédaction : {getTimeAgo()}
+                  <Clock className="w-3 h-3 mr-1.5" /> Bureau Stony News : {getTimeAgo()}
                 </p>
               )}
             </div>
-            <button 
-              onClick={() => handleFetchNews(inputText, true)} 
-              disabled={isLoading}
-              className="p-2.5 text-gray-400 hover:text-burkina-red transition-all group disabled:opacity-50 bg-white rounded-xl border-2 border-gray-50 shadow-sm"
-              title="Actualiser le bulletin"
-            >
-                <RefreshCw className={`w-5 h-5 group-hover:rotate-180 transition-transform duration-700 ${isLoading ? 'animate-spin' : ''}`} /> 
-            </button>
-        </div>
-
-        {error && (
-          <div className="bg-white border-l-4 border-burkina-red p-6 rounded-2xl mb-8 flex items-start shadow-xl animate-fade-in-up">
-            <AlertCircle className="w-6 h-6 text-burkina-red mr-4 flex-shrink-0 mt-1" /> 
-            <div className="text-gray-800">
-              <p className="font-black text-lg">Note de la rédaction</p>
-              <p className="text-sm opacity-80">{error}</p>
+            {!error && (
               <button 
-                onClick={() => handleFetchNews(inputText, true)}
-                className="mt-4 text-xs font-bold text-burkina-red hover:underline uppercase"
+                onClick={() => handleFetchNews(inputText, true)} 
+                disabled={isLoading}
+                className="p-2.5 text-gray-400 hover:text-burkina-red transition-all group disabled:opacity-50 bg-white rounded-xl border-2 border-gray-50 shadow-sm"
+                title="Actualiser le bulletin"
               >
-                Réessayer la demande
+                  <RefreshCw className={`w-5 h-5 group-hover:rotate-180 transition-transform duration-700 ${isLoading ? 'animate-spin' : ''}`} /> 
               </button>
-            </div>
-          </div>
-        )}
+            )}
+        </div>
 
         {isLoading && newsItems.length === 0 ? (
           <div className="space-y-8">
-            {[1, 2, 3].map(i => (
+            {[1, 2].map(i => (
               <div key={i} className="bg-white rounded-3xl p-8 h-64 animate-pulse border-2 border-gray-50 flex flex-col gap-6 shadow-sm">
                 <div className="h-6 bg-gray-100 rounded-full w-1/4"></div>
                 <div className="h-10 bg-gray-100 rounded-xl w-3/4"></div>
@@ -202,7 +198,7 @@ const App: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-8 mb-16 relative">
-            {isLoading && (
+            {isLoading && newsItems.length > 0 && (
               <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 rounded-2xl flex items-center justify-center">
                 <div className="bg-white p-4 rounded-full shadow-xl">
                   <Loader2 className="h-8 w-8 animate-spin text-burkina-red" />
@@ -215,7 +211,7 @@ const App: React.FC = () => {
               <div className="text-center py-32 bg-white border-2 border-dashed border-gray-200 rounded-[3rem] shadow-sm">
                 <Info className="w-16 h-16 text-gray-200 mx-auto mb-6" />
                 <p className="text-gray-400 font-bold text-xl">Aucune dépêche trouvée.</p>
-                <p className="text-gray-300 text-sm mt-2">La rédaction est en attente de nouvelles informations sur ce sujet.</p>
+                <p className="text-gray-300 text-sm mt-2">Essayez d'élargir votre recherche ou de changer de filtre.</p>
               </div>
             )}
           </div>
@@ -232,10 +228,10 @@ const App: React.FC = () => {
         </div>
         <h3 className="text-xl font-serif font-black tracking-widest mb-2 uppercase">STONY NEWS</h3>
         <p className="text-gray-500 text-[0.6rem] font-bold tracking-[0.3em] uppercase">
-          Plateforme d'information citoyenne assistée par technologie Gemini
+          Journalisme citoyen augmenté par Intelligence Artificielle
         </p>
         <p className="text-gray-600 text-[0.6rem] mt-8 font-medium uppercase">
-          STONY NEWS © {new Date().getFullYear()} • Journalisme Indépendant
+          STONY NEWS © {new Date().getFullYear()} • Ouagadougou • Burkina Faso
         </p>
       </footer>
     </div>
